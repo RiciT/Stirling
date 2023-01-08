@@ -292,7 +292,7 @@ namespace Stirling
             {
                 Console.WriteLine(prevCollided1 + " " + prevCollided2);
                 
-                //;rrowVBVOIbvoiwRV'OIwvoebv;oB;OUVBA;URVB;AURVBO
+                //;rrowVBVOIbvoiwRV'OIwvoebv;oB;OUVBA;URVB;AURVBOd
                 foreach(var el in times)
                 {
                     if (el.Item2 == prevCollided1 || el.Item3 == prevCollided1 || el.Item2 == prevCollided2 ||
