@@ -3,45 +3,43 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace Stirling
 {
-    //OPTIMIZATION OPTIONS - COULD ONLY CALCULATE THE LASTLY COLLIDED PARTICLES BC WE ALREADY KNOW THE OTHER TIMES
-
     internal class Program
     {
-        static int nOParticles = 10;
+        static int nOParticles = 1000;
         static int step = 0;
         static double currentStepSize;
         static double globalTime = 0;
 
         static double[][] positions;
         static double[][] velocities;
-        static double[] temps; //kelvin
         static double[] masses;
-        static double particleSize = 0.25; //0,05 was way too small - almost no particles collided
+        static double particleSize = 40 * Math.Pow(10, 20/3 - 11); //0,05 was way too small - almost no particles collided
 
-        static double smallCircleRadius = 4;
-        static double circleRadius = 10;
-        static double height = 20;
+        static double smallCircleRadius = 0.06;
+        static double circleRadius = 0.15;
+        static double height = 1;
 
-        static double hotPlate = 380; //hotPlate is the upper one
-        static double coldPlate = 220;
+        static double hotPlate = 460 * Math.Pow(10, 21); //hotPlate is the upper one
+        static double coldPlate = 200 * Math.Pow(10, 21);
 
-        static double rOfFlyWheel = 2.5;
+        static double rOfFlyWheel = 0.1;
         static double upperPistonPos;
         static double lowerPistonPos;
-        static double omega = 5;
-        static double theta = 12;
+        static double omega = 2;
+        static double theta = 0.5 * 0.3 * 0.1 * 0.1;
         static double alpha = 0; //position of flywheel
         static double startingUpPistPosAngles = -Math.PI / 2; //0 angle is right - upper piston starts heading down
 
         static double k = 1.380649 * Math.Pow(10, -23);
 
-        static double velocityMultiplier = 1;
-
         static int prevCollided1 = -10; //random number that cant be an index of anything - walls nor particles
         static int prevCollided2 = -10;
+
+        static int mfal; //TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
         static void Init()
@@ -50,7 +48,6 @@ namespace Stirling
             positions = new double[nOParticles][];
             velocities = new double[nOParticles][];
             masses = new double[nOParticles];
-            temps = new double[nOParticles];
 
             for (int i = 0; i < nOParticles; i++)
             {
@@ -63,10 +60,9 @@ namespace Stirling
                 velocities[i][0] = NextDouble(rand, -1, 1, 5);
                 velocities[i][1] = NextDouble(rand, -1, 1, 5);
                 velocities[i][2] = NextDouble(rand, -1, 1, 5);
-                velocities[i] = Vector.MultiplyByNum(velocities[i], velocityMultiplier);
+                velocities[i] = Vector.MultiplyByNum(velocities[i], 60); //multiplying initial velocity like its in room temp
 
-                temps[i] = 300;
-                masses[i] = 1.66 * Math.Pow(10, -24);
+                masses[i] = 1.66 * Math.Pow(10, -5);
             }
 
             upperPistonPos = height + rOfFlyWheel * Math.Cos(alpha); //cos now but could be changed - with respect to the starting angledifference
@@ -108,8 +104,6 @@ namespace Stirling
                 return -1;
             else
                 return t;
-
-            //NO PARTICLES COLLIDING WTF????
         }
 
         static public double Particle_Wall_Collision(double[] p, double[] v, double R, double r, double k, int wallType)
@@ -138,6 +132,8 @@ namespace Stirling
                     return -1;
                 else
                     return t;
+
+                //JOEZIGY?????
             }
 
             else if (wallType == -2) //kozepso talcaize
@@ -152,8 +148,8 @@ namespace Stirling
 
             else if (wallType == -3) //felso dugattyu
             {
-                double t1 = (p[1] + k - upperPistonPos - rOfFlyWheel * Math.Cos(alpha)) / (-v[1] - rOfFlyWheel * Math.Sin(alpha) * omega);
-                double t2 = (p[1] - k - upperPistonPos - rOfFlyWheel * Math.Cos(alpha)) / (-v[1] - rOfFlyWheel * Math.Sin(alpha) * omega);
+                double t1 = (p[1] - k - upperPistonPos - rOfFlyWheel * Math.Cos(alpha)) / (-v[1] - rOfFlyWheel * Math.Sin(alpha) * omega);
+                double t2 = (p[1] - k - upperPistonPos - rOfFlyWheel * Math.Cos(alpha)) / (-v[1] + rOfFlyWheel * Math.Sin(alpha) * omega);
 
                 double t = (t1 > 0 && t2 > 0) ? Math.Min(t1, t2) : Math.Max(t1, t2);
 
@@ -165,8 +161,8 @@ namespace Stirling
 
             else if (wallType == -4) //also dugattyu
             {
-                double t1 = (p[1] + k - lowerPistonPos - rOfFlyWheel * Math.Sin(alpha)) / (-v[1] + rOfFlyWheel * Math.Cos(alpha) * omega);
-                double t2 = (p[1] - k - lowerPistonPos - rOfFlyWheel * Math.Sin(alpha)) / (-v[1] + rOfFlyWheel * Math.Cos(alpha) * omega);
+                double t1 = (p[1] + k - lowerPistonPos - rOfFlyWheel * Math.Sin(alpha)) / (-v[1] - rOfFlyWheel * Math.Cos(alpha) * omega);
+                double t2 = (p[1] + k - lowerPistonPos - rOfFlyWheel * Math.Sin(alpha)) / (-v[1] + rOfFlyWheel * Math.Cos(alpha) * omega);
 
                 double t = (t1 > 0 && t2 > 0) ? Math.Min(t1, t2) : Math.Max(t1, t2);
 
@@ -181,22 +177,35 @@ namespace Stirling
 
         static public void UpdatePositions(int n1, int n2)
         {
-            for (int i = 0; i < nOParticles; i++)
-            {
-                //if (i != n1 && i != n2) //putting the collided particles to the collision point not to the time based point!!!
-                //{
-                positions[i][0] += velocities[i][0] * currentStepSize;
-                positions[i][1] += velocities[i][1] * currentStepSize;
-                positions[i][2] += velocities[i][2] * currentStepSize;
-                //}
-            }
-
-            //positions[n1] = 
-
             alpha += omega * currentStepSize;
 
             upperPistonPos = height + rOfFlyWheel * Math.Cos(alpha);
             lowerPistonPos = rOfFlyWheel * Math.Sin(alpha);
+
+            for (int i = 0; i < nOParticles; i++)
+            {
+                if (i == n1 && n2 >= 0)
+                {
+                    positions[n2][0] += velocities[n2][0] * currentStepSize;
+                    positions[n2][1] += velocities[n2][1] * currentStepSize;
+                    positions[n2][2] += velocities[n2][2] * currentStepSize;
+                }
+                else if (i == n1 && n2 < -2)
+                {
+                    positions[i][0] += velocities[i][0] * currentStepSize;
+                    positions[i][1] = n2 == -3 ? upperPistonPos : lowerPistonPos;
+                    positions[i][2] += velocities[i][2] * currentStepSize;
+                    continue;
+                }
+                else if (i == n2)
+                {
+                    continue;
+                }
+
+                positions[i][0] += velocities[i][0] * currentStepSize;
+                positions[i][1] += velocities[i][1] * currentStepSize;
+                positions[i][2] += velocities[i][2] * currentStepSize;
+            }
         }
 
         static public void UpdateVelocity(int nOParticle, int nOCollided)
@@ -218,7 +227,7 @@ namespace Stirling
                     Particle_Wall_Collision(positions[nOParticle], velocities[nOParticle], circleRadius, smallCircleRadius, particleSize, -1)));
                 double gamma = Math.PI / 2 - Math.Acos(Math.Abs(Vector.DotProduct(velocities[nOParticle], pu)) / (Vector.Magnitude(velocities[nOParticle]) * Vector.Magnitude(pu)));
 
-                var temp = 3 * k * ((positions[nOParticle][1] >= height / 2) ? hotPlate : coldPlate) / masses[nOParticle]; //temperature diff??
+                var temp = 3 * k * ((positions[nOParticle][1] >= height / 2) ? hotPlate : coldPlate) / masses[nOParticle];
                 var d = Math.Sqrt(temp / Vector.Square(velocities[nOParticle]));
 
                 velocities[nOParticle][0] = Math.Cos(2 * gamma) * velocities[nOParticle][0] - Math.Sin(2 * gamma) * velocities[nOParticle][2];
@@ -235,7 +244,8 @@ namespace Stirling
                 double curSpeed = rOfFlyWheel * -Math.Sin(alpha);
                 velocities[nOParticle][1] = 2 * curSpeed - velocities[nOParticle][1];
 
-                omega = Math.Sqrt(2 * masses[nOParticle] * curSpeed * velocities[nOParticle][1] / theta + Math.Pow(omega, 2)); //mass??
+                omega = Math.Sqrt(2 * masses[nOParticle] * curSpeed * velocities[nOParticle][1] / theta + Math.Pow(omega, 2));
+                //Console.WriteLine(velocities[nOParticle][0] + " " + velocities[nOParticle][1] + " " + velocities[nOParticle][2]);
             }
 
             else if (nOCollided == -4) //also dugattyu
@@ -243,12 +253,20 @@ namespace Stirling
                 double curSpeed = rOfFlyWheel * Math.Cos(alpha);
                 velocities[nOParticle][1] = 2 * curSpeed - velocities[nOParticle][1];
 
-                omega = Math.Sqrt(2 * masses[nOParticle] * curSpeed * velocities[nOParticle][1] / theta + Math.Pow(omega, 2)); //mass??
+                omega = Math.Sqrt(2 * masses[nOParticle] * curSpeed * velocities[nOParticle][1] / theta + Math.Pow(omega, 2));
+                //Console.WriteLine(velocities[nOParticle][0] + " " + velocities[nOParticle][1] + " " + velocities[nOParticle][2]);
             }
         }
 
         static void Main(string[] args)
         {
+            int[] forVel = new int[nOParticles * 150];
+
+            for (int i = 0; i < forVel.Length; i++)
+            {
+                forVel[i] = i % 100;
+            }
+
             Init();
             List<(double, int, int)> times = new List<(double, int, int)>();
             
@@ -289,21 +307,15 @@ namespace Stirling
                 prevCollided2 = times[minI].Item3;
 
             while (true) //theres a problem!!!!!!!!!!
-            {
-                Console.WriteLine(prevCollided1 + " " + prevCollided2);
-                
+            {   
                 //;rrowVBVOIbvoiwRV'OIwvoebv;oB;OUVBA;URVB;AURVBOd
-                foreach(var el in times)
+                for (int i = times.Count - 1; i >= 0; i--)
                 {
-                    if (el.Item2 == prevCollided1 || el.Item3 == prevCollided1 || el.Item2 == prevCollided2 ||
-                        (el.Item3 == prevCollided2 && (prevCollided2 >= 0 || prevCollided2 == -3 || prevCollided2 == -4)))
-                    {
+                    if (times[i].Item2 == prevCollided1 || times[i].Item3 == prevCollided1 || times[i].Item2 == prevCollided2 ||
+                        (times[i].Item3 == prevCollided2 && (prevCollided2 >= 0 || prevCollided2 == -3 || prevCollided2 == -4)))
                         times.RemoveAt(i);
-                    }
                     else
-                    {
-                        el = (el.Item1 - currentStepSize, el.Item2, el.Item3);
-                    }
+                        times[i] = (times[i].Item1 == -1 ? times[i].Item1 : times[i].Item1 - currentStepSize, times[i].Item2, times[i].Item3);
                 }
 
                 for (int i = 0; i < nOParticles; i++)
@@ -355,11 +367,116 @@ namespace Stirling
                 currentStepSize = times[minI].Item1;
                 step++;
                 globalTime += currentStepSize;
-                Console.WriteLine(times[minI].Item2 + " " + times[minI].Item3 + " " + currentStepSize);
                 UpdatePositions(times[minI].Item2, times[minI].Item3);
                 UpdateVelocity(times[minI].Item2, times[minI].Item3);
                 prevCollided1 = times[minI].Item2;
                 prevCollided2 = times[minI].Item3;
+                //Console.WriteLine(times[minI].Item2 + " " + times[minI].Item3 + " " + currentStepSize);
+                //Console.WriteLine(velocities[0][0] + " " + velocities[0][1] + " " + velocities[0][2]);
+
+                ////////////////////////////////////////
+                //Console.WriteLine(omega);
+
+                double vatlfent = 0;
+                double vatllent = 0;
+                double vsqatlfent = 0;
+                double vsqatllent = 0;
+                double noFent = 0;
+                double noLent = 0;
+
+                for (int i = 0; i < nOParticles; i++)
+                {
+                    if (positions[i][1] >= height / 2)
+                    {
+                        vatlfent += Vector.Magnitude(velocities[i]);
+                        vsqatlfent += Vector.Square(velocities[i]);
+                        noFent++;
+                    }
+                    else
+                    {
+                        vatllent += Vector.Magnitude(velocities[i]);
+                        vsqatllent += Vector.Square(velocities[i]);
+                        noLent++;
+                    }
+                }
+
+                vatlfent /= nOParticles;
+                vatllent /= nOParticles;
+                vsqatlfent /= nOParticles;
+                vsqatllent /= nOParticles;
+
+                double Vfelso = (upperPistonPos - height/2) * Math.Pow(circleRadius, 2) * Math.PI;
+                double Valso = (height/2 - lowerPistonPos) * Math.Pow(circleRadius, 2) * Math.PI;
+
+                double rofent = masses[0] * noFent / Vfelso;
+                double rolent = masses[0] * noLent / Valso;
+
+                using (StreamWriter writetext = new StreamWriter("e:\\Developing\\TDK-stirling\\omega.txt", true))
+                {
+                    writetext.WriteLine(omega);
+                }
+
+                using (StreamWriter writetext = new StreamWriter("e:\\Developing\\TDK-stirling\\alpha.txt", true))
+                {
+                    writetext.WriteLine(alpha);
+                }
+
+                using (StreamWriter writetext = new StreamWriter("e:\\Developing\\TDK-stirling\\dt-global.txt", true))
+                {
+                    writetext.WriteLine(globalTime);
+                }
+
+                using (StreamWriter writetext = new StreamWriter("e:\\Developing\\TDK-stirling\\pfelso.txt", true))
+                {
+                    writetext.WriteLine(rofent * vatlfent);
+                }
+
+                using (StreamWriter writetext = new StreamWriter("e:\\Developing\\TDK-stirling\\palso.txt", true))
+                {
+                    writetext.WriteLine(rolent * vatllent);
+                }
+
+                using (StreamWriter writetext = new StreamWriter("e:\\Developing\\TDK-stirling\\Tfelso.txt", true))
+                {
+                    writetext.WriteLine(vsqatlfent);
+                }
+
+                using (StreamWriter writetext = new StreamWriter("e:\\Developing\\TDK-stirling\\Talso.txt", true))
+                {
+                    writetext.WriteLine(vsqatllent);
+                }
+
+                using (StreamWriter writetext = new StreamWriter("e:\\Developing\\TDK-stirling\\Vfelso.txt", true))
+                {
+                    writetext.WriteLine(Vfelso);
+                }
+
+                using (StreamWriter writetext = new StreamWriter("e:\\Developing\\TDK-stirling\\Valso.txt", true))
+                {
+                    writetext.WriteLine(Valso);
+                }
+
+                if (forVel.Contains(prevCollided1))
+                {
+                    forVel[Array.IndexOf(forVel, prevCollided1)] = -1;
+                    if (prevCollided2 > 0 && forVel.Contains(prevCollided2))
+                    {
+                        forVel[Array.IndexOf(forVel, prevCollided2)] = -1;
+                    }
+                }
+
+                Console.WriteLine(globalTime);
+
+                if (!forVel.All(x => x == -1))
+                {
+                    for (int i = 0; i < velocities.GetLength(0); i++)
+                    {
+                        Console.WriteLine(Vector.Magnitude(velocities[i]));
+                    }
+                    break;
+                }
+
+                ////////////////////////////////////////////
             }
         }
     }
