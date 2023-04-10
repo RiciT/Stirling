@@ -39,8 +39,6 @@ namespace Stirling
         static int prevCollided1 = -10; //random number that cant be an index of anything - walls nor particles
         static int prevCollided2 = -10;
 
-        static int mfal; //TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
         static void Init()
         {
@@ -467,14 +465,14 @@ namespace Stirling
 
                 Console.WriteLine(globalTime);
 
-                if (!forVel.All(x => x == -1))
+                /*if (forVel.All(x => x == -1))
                 {
                     for (int i = 0; i < velocities.GetLength(0); i++)
                     {
                         Console.WriteLine(Vector.Magnitude(velocities[i]));
                     }
                     break;
-                }
+                }*/
 
                 ////////////////////////////////////////////
             }
