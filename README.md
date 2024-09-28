@@ -1,1 +1,1 @@
-Stirling
+Please read take a look at the [Finished research paper](Stirling_motor_OTDK.docx)
